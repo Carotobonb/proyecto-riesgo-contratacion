@@ -1,0 +1,27 @@
+[project]
+name = "riesgo-contratacion"
+version = "0.1.0"
+description = "Priorización de contratos de SECOP II por señales de riesgo"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "requests",
+    "mlflow",
+    "optuna",
+    "prefect",
+    "fastapi",
+    "uvicorn",
+    "ollama",
+]
+
+[dependency-groups]
+dev = ["pytest", "ruff", "jupyter"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
