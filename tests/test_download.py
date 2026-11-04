@@ -1,6 +1,6 @@
 from datetime import date
 
-from src.data.download import _where, checksum, ventana
+from src.data.download import _where, checksum, elegir_bloques, ventana
 
 
 def test_ventana_movil_hasta_hoy():
@@ -21,3 +21,12 @@ def test_checksum_cambia_con_el_contenido(tmp_path):
     c1 = checksum(str(f))
     f.write_text("x\n2\n")
     assert checksum(str(f)) != c1
+
+
+def test_bloques_cubren_toda_la_ventana_sin_solaparse():
+    offs = elegir_bloques(total=150_000, n=2000, tam=20, semilla=42)
+    assert len(offs) == 100
+    assert len(set(offs)) == 100 and all(o % 20 == 0 for o in offs)
+    assert max(offs) + 20 <= 150_000
+    assert min(offs) < 30_000 and max(offs) > 120_000      # no se queda en los primeros
+    assert offs == elegir_bloques(total=150_000, n=2000, tam=20, semilla=42)

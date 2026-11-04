@@ -1,7 +1,8 @@
 """Descarga una muestra reproducible de SECOP II desde la API de datos.gov.co.
 
 Pide solo las columnas necesarias (sin cédulas, nombres de personas ni cuentas bancarias),
-excluye contratos sin fecha de firma y toma una muestra aleatoria con semilla fija.
+excluye contratos sin fecha de firma y toma una muestra aleatoria con semilla fija,
+repartida por toda la ventana (bloques al azar), sin bajar la ventana completa.
 
 Por defecto la ventana es móvil: los últimos 24 meses hasta el día en que se ejecuta.
 Cada descarga deja un archivo .meta.json con la ventana, la semilla y el checksum del CSV,
@@ -18,6 +19,7 @@ import json
 import os
 from datetime import date, datetime
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -78,37 +80,52 @@ def _headers() -> dict:
     return {"X-App-Token": token} if token else {}
 
 
-def descargar(desde: str, hasta: str, n: int = 2000, pagina: int = 5000,
-              max_filas: int = 60000, semilla: int = 42) -> tuple[pd.DataFrame, int]:
-    """Baja todos los contratos de la ventana (por páginas) y devuelve n al azar.
+def elegir_bloques(total: int, n: int, tam: int, semilla: int) -> list[int]:
+    """Offsets de bloques de `tam` contratos elegidos al azar, sin solaparse.
 
-    También devuelve cuántos contratos había en la ventana antes de muestrear.
+    Con n=2000 y tam=20 son 100 bloques repartidos por toda la ventana.
+    """
+    bloques_posibles = total // tam
+    k = min(n // tam, bloques_posibles)
+    rng = np.random.default_rng(semilla)
+    elegidos = rng.choice(bloques_posibles, size=k, replace=False)
+    return sorted(int(i) * tam for i in elegidos)
+
+
+def _pedir(where: str, limit: int, offset: int, headers: dict) -> list[dict]:
+    params = {
+        "$select": ",".join(COLUMNAS),
+        "$where": where,
+        "$order": "id_contrato",
+        "$limit": limit,
+        "$offset": offset,
+    }
+    r = requests.get(URL, params=params, headers=headers, timeout=120)
+    r.raise_for_status()
+    return r.json()
+
+
+def descargar(desde: str, hasta: str, n: int = 2000, tam_bloque: int = 20,
+              semilla: int = 42) -> tuple[pd.DataFrame, int]:
+    """Muestra de n contratos repartida por toda la ventana, sin bajar la ventana completa.
+
+    Cuenta los contratos de la ventana, elige al azar bloques de `tam_bloque` contratos
+    consecutivos (ordenados por id_contrato) y baja solo esos. Si la ventana tiene n o
+    menos contratos, los baja todos. Devuelve la muestra y el total de la ventana.
     """
     headers = _headers()
-    filas, offset = [], 0
-    while offset < max_filas:
-        params = {
-            "$select": ",".join(COLUMNAS),
-            "$where": _where(desde, hasta),
-            "$order": "id_contrato",
-            "$limit": pagina,
-            "$offset": offset,
-        }
-        r = requests.get(URL, params=params, headers=headers, timeout=120)
-        r.raise_for_status()
-        lote = r.json()
-        filas.extend(lote)
-        if len(lote) < pagina:
-            break
-        offset += pagina
-    df = pd.DataFrame(filas)
-    total = len(df)
-    if total >= max_filas:
-        print(f"AVISO: la ventana tiene más de {max_filas} contratos y solo se bajaron los "
-              "primeros por id_contrato; la muestra puede quedar sesgada hacia los más "
-              "antiguos. Use una ventana más corta (--meses) o suba max_filas.")
-    if total > n:
-        df = df.sample(n=n, random_state=semilla).reset_index(drop=True)
+    where = _where(desde, hasta)
+    total = contar(where)
+    if total == 0:
+        return pd.DataFrame(columns=COLUMNAS), 0
+    filas = []
+    if total <= n:
+        for offset in range(0, total, 5000):
+            filas.extend(_pedir(where, 5000, offset, headers))
+    else:
+        for offset in elegir_bloques(total, n, tam_bloque, semilla):
+            filas.extend(_pedir(where, tam_bloque, offset, headers))
+    df = pd.DataFrame(filas).drop_duplicates(subset="id_contrato").reset_index(drop=True)
     return df, total
 
 
@@ -137,6 +154,7 @@ def main() -> None:
         "contratos_en_ventana": total,
         "muestra": len(df),
         "semilla": a.semilla,
+        "metodo": "bloques aleatorios de 20 contratos ordenados por id_contrato",
         "sha256": checksum(a.salida),
         "descargado": datetime.now().isoformat(timespec="seconds"),
     }
