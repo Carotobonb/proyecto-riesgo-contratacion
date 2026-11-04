@@ -47,11 +47,35 @@ def checksum(ruta: str) -> str:
 
 def _where(desde: str, hasta: str) -> str:
     return (
-        "upper(ciudad) like '%MEDELLIN%' "
+        "upper(ciudad) like '%MEDELL%' "  # sin la í: cubre Medellín, MEDELLIN y MEDELLÍN
         "AND fecha_de_firma IS NOT NULL "
         f"AND fecha_de_firma >= '{desde}T00:00:00' "
         f"AND fecha_de_firma <= '{hasta}T23:59:59'"
     )
+
+
+def contar(where: str) -> int:
+    """Cuántos contratos cumplen un filtro, sin bajarlos."""
+    r = requests.get(URL, params={"$select": "count(*) AS n", "$where": where},
+                     headers=_headers(), timeout=120)
+    r.raise_for_status()
+    return int(r.json()[0]["n"])
+
+
+def diagnostico(desde: str, hasta: str) -> None:
+    """Muestra en qué filtro se pierden los contratos cuando la descarga sale vacía."""
+    pasos = [
+        ("Ciudad Medellín", "upper(ciudad) like '%MEDELL%'"),
+        ("  + con fecha de firma", "upper(ciudad) like '%MEDELL%' AND fecha_de_firma IS NOT NULL"),
+        (f"  + firmados entre {desde} y {hasta}", _where(desde, hasta)),
+    ]
+    for nombre, w in pasos:
+        print(f"{nombre}: {contar(w)} contratos")
+
+
+def _headers() -> dict:
+    token = os.getenv("SOCRATA_APP_TOKEN")
+    return {"X-App-Token": token} if token else {}
 
 
 def descargar(desde: str, hasta: str, n: int = 2000, pagina: int = 5000,
@@ -60,9 +84,7 @@ def descargar(desde: str, hasta: str, n: int = 2000, pagina: int = 5000,
 
     También devuelve cuántos contratos había en la ventana antes de muestrear.
     """
-    headers = {}
-    if os.getenv("SOCRATA_APP_TOKEN"):
-        headers["X-App-Token"] = os.environ["SOCRATA_APP_TOKEN"]
+    headers = _headers()
     filas, offset = [], 0
     while offset < max_filas:
         params = {
@@ -104,6 +126,10 @@ def main() -> None:
     desde, hasta = a.desde or desde, a.hasta or hasta
 
     df, total = descargar(desde, hasta, a.n, semilla=a.semilla)
+    if total == 0:
+        print(f"La API no devolvió contratos para {desde} a {hasta}. Diagnóstico:")
+        diagnostico(desde, hasta)
+        raise SystemExit(1)
     df.to_csv(a.salida, index=False)
     meta = {
         "desde": desde,

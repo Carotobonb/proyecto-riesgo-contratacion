@@ -11,6 +11,7 @@ def test_ventana_movil_hasta_hoy():
 def test_where_excluye_sin_firma_y_usa_ventana():
     w = _where("2024-11-03", "2026-11-03")
     assert "fecha_de_firma IS NOT NULL" in w
+    assert "'%MEDELL%'" in w            # sin tilde, para no perder "Medellín"
     assert "'2024-11-03T00:00:00'" in w and "'2026-11-03T23:59:59'" in w
 
 

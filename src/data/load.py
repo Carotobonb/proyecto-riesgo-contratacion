@@ -9,7 +9,10 @@ REQUERIDAS = [
 
 
 def cargar(ruta: str) -> pd.DataFrame:
-    df = pd.read_csv(ruta, low_memory=False)
+    try:
+        df = pd.read_csv(ruta, low_memory=False)
+    except pd.errors.EmptyDataError:
+        raise ValueError(f"{ruta} está vacío: revise la descarga antes de armar el ranking")
     faltan = [c for c in REQUERIDAS if c not in df.columns]
     if faltan:
         raise ValueError(f"Faltan columnas en {ruta}: {faltan}")
