@@ -10,7 +10,8 @@ from src.scoring.score import SIGNALS, alert, rank
 from src.signals.compute import add_signals
 
 SALIDA = ["id_contrato", "nombre_entidad", "modalidad_de_contratacion", "tipo_de_contrato",
-          "valor_del_contrato", "puntaje", "alerta", *SIGNALS, "urlproceso"]
+          "objeto_del_contrato", "valor_del_contrato", "dias_adicionados", "puntaje", "alerta",
+          *SIGNALS, "urlproceso"]
 
 
 def construir(ruta_entrada: str):
