@@ -2,6 +2,8 @@
 
 Proyecto II. Ordena los contratos de SECOP II según señales de riesgo que se leen del contrato, para decidir cuáles revisar primero. El sistema no acusa a nadie: prioriza la revisión.
 
+Si es tu primera vez en el proyecto, empieza por `docs/contexto_proyecto.md`.
+
 ## Cómo reproducirlo
 
 ```bash
