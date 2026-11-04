@@ -83,7 +83,8 @@ def _headers() -> dict:
 def elegir_bloques(total: int, n: int, tam: int, semilla: int) -> list[int]:
     """Offsets de bloques de `tam` contratos elegidos al azar, sin solaparse.
 
-    Con n=2000 y tam=20 son 100 bloques repartidos por toda la ventana.
+    Con n=2000 y tam=5 son 400 bloques repartidos por toda la ventana. Bloques más pequeños
+    reducen el riesgo de que la muestra se llene de contratos seguidos de una misma entidad.
     """
     bloques_posibles = total // tam
     k = min(n // tam, bloques_posibles)
@@ -105,7 +106,7 @@ def _pedir(where: str, limit: int, offset: int, headers: dict) -> list[dict]:
     return r.json()
 
 
-def descargar(desde: str, hasta: str, n: int = 2000, tam_bloque: int = 20,
+def descargar(desde: str, hasta: str, n: int = 2000, tam_bloque: int = 5,
               semilla: int = 42) -> tuple[pd.DataFrame, int]:
     """Muestra de n contratos repartida por toda la ventana, sin bajar la ventana completa.
 
@@ -136,13 +137,14 @@ def main() -> None:
     ap.add_argument("--hasta", help="fecha fija de fin (AAAA-MM-DD)")
     ap.add_argument("--n", type=int, default=2000)
     ap.add_argument("--semilla", type=int, default=42)
+    ap.add_argument("--bloque", type=int, default=5, help="contratos seguidos por bloque")
     ap.add_argument("--salida", default="data/raw/contratos_medellin.csv")
     a = ap.parse_args()
 
     desde, hasta = ventana(date.today(), a.meses)
     desde, hasta = a.desde or desde, a.hasta or hasta
 
-    df, total = descargar(desde, hasta, a.n, semilla=a.semilla)
+    df, total = descargar(desde, hasta, a.n, tam_bloque=a.bloque, semilla=a.semilla)
     if total == 0:
         print(f"La API no devolvió contratos para {desde} a {hasta}. Diagnóstico:")
         diagnostico(desde, hasta)
@@ -154,7 +156,7 @@ def main() -> None:
         "contratos_en_ventana": total,
         "muestra": len(df),
         "semilla": a.semilla,
-        "metodo": "bloques aleatorios de 20 contratos ordenados por id_contrato",
+        "metodo": f"bloques aleatorios de {a.bloque} contratos ordenados por id_contrato",
         "sha256": checksum(a.salida),
         "descargado": datetime.now().isoformat(timespec="seconds"),
     }
