@@ -1,0 +1,10 @@
+{
+  "desde": "2024-11-03",
+  "hasta": "2026-11-03",
+  "contratos_en_ventana": 98763,
+  "muestra": 2000,
+  "semilla": 42,
+  "metodo": "bloques aleatorios de 5 contratos ordenados por id_contrato",
+  "sha256": "fdc70e8fb8467b29897f7f7bf8c8cf9b3acd7bdd8ea3f722b0057329cca0e7e5",
+  "descargado": "2026-11-03T19:57:09"
+}

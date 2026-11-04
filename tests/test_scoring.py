@@ -20,10 +20,15 @@ def test_tie_is_broken_by_contract_value():
     assert list(out["valor_del_contrato"]) == [90_000_000, 5_000_000]
 
 
-def test_ties_are_not_split_across_alerts():
-    p = pd.Series([80, 80, 80, 20, 20, 20, 0, 0, 0, 0])
+def test_alert_follows_ranking_positions():
+    p = pd.Series([80, 80, 70, 60, 50, 40, 30, 20, 10, 0])
     a = alert(p)
-    assert set(a[:3]) == {"alta"}
+    assert a.value_counts().to_dict() == {"baja": 7, "media": 2, "alta": 1}
+
+
+def test_many_ties_do_not_inflate_alta():
+    p = pd.Series([50] + [20] * 99)
+    assert (alert(p) == "alta").sum() == 10
 
 
 def test_all_zero_scores_are_low():
