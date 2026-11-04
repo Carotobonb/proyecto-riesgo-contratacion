@@ -81,6 +81,10 @@ def descargar(desde: str, hasta: str, n: int = 2000, pagina: int = 5000,
         offset += pagina
     df = pd.DataFrame(filas)
     total = len(df)
+    if total >= max_filas:
+        print(f"AVISO: la ventana tiene más de {max_filas} contratos y solo se bajaron los "
+              "primeros por id_contrato; la muestra puede quedar sesgada hacia los más "
+              "antiguos. Use una ventana más corta (--meses) o suba max_filas.")
     if total > n:
         df = df.sample(n=n, random_state=semilla).reset_index(drop=True)
     return df, total
